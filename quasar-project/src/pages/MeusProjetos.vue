@@ -55,6 +55,29 @@
       </div>
     </div>
 
+    <!-- Edit Project Dialog -->
+    <q-dialog v-model="editProjectDialog" persistent>
+      <q-card style="min-width: 350px; max-width: 600px; width: 100%;">
+        <q-card-section>
+          <div class="text-h6">Editar Projeto</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input v-model="editingProject.nome" label="Nome do Projeto" dense />
+          <q-input v-model="editingProject.descricao" label="Descrição" type="textarea" dense />
+          <q-select
+            v-model="editingProject.tipoProjeto"
+            :options="projectTypesForNewProject"
+            label="Tipo de Projeto"
+            dense
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="text-primary">
+          <q-btn flat label="Cancelar" v-close-popup @click="cancelEdit" />
+          <q-btn flat label="Salvar" @click="saveEditedProject" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- New Project Dialog -->
     <q-dialog v-model="newProjectDialog" persistent>
       <q-card style="min-width: 350px">
@@ -111,6 +134,72 @@ const selectedType = ref(null)
 const user = ref(JSON.parse(localStorage.getItem('userData')))
 const isAdmin = computed(() => user.value.user_role === 'ADMIN')
 
+// Adicione estas variáveis ref
+const editProjectDialog = ref(false)
+const editingProject = ref({
+  idProjeto: null,
+  nome: '',
+  descricao: '',
+  tipoProjeto: ''
+})
+
+// Modifique a função editProject
+function editProject (project) {
+  editingProject.value = { ...project }
+  editProjectDialog.value = true
+}
+
+// Adicione estas novas funções
+function cancelEdit () {
+  editProjectDialog.value = false
+  editingProject.value = {
+    idProjeto: null,
+    nome: '',
+    descricao: '',
+    tipoProjeto: ''
+  }
+}
+
+async function saveEditedProject () {
+  // Validação de campos
+  if (!editingProject.value.nome || !editingProject.value.descricao || !editingProject.value.tipoProjeto) {
+    $q.notify({
+      color: 'negative',
+      message: 'Todos os campos devem ser preenchidos',
+      icon: 'error'
+    })
+    return
+  }
+
+  try {
+    const token = localStorage.getItem('userToken')
+    const projectData = {
+      ...editingProject.value,
+      tipoProjeto: editingProject.value.tipoProjeto.value || editingProject.value.tipoProjeto
+    }
+
+    await api.put(`http://localhost:8080/projeto/editar/${editingProject.value.idProjeto}`, projectData, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    $q.notify({
+      color: 'positive',
+      message: 'Projeto atualizado com sucesso',
+      icon: 'check'
+    })
+
+    editProjectDialog.value = false
+    await fetchProjects()
+  } catch (error) {
+    console.error('Error updating project:', error.response ? error.response.data : error)
+    $q.notify({
+      color: 'negative',
+      message: 'Erro ao atualizar projeto: ' + (error.response?.data?.message || error.message),
+      icon: 'error'
+    })
+  }
+}
+
 const newProject = ref({
   nome: '',
   descricao: '',
@@ -151,8 +240,8 @@ async function fetchProjects () {
   try {
     const token = localStorage.getItem('userToken')
     const endpoint = isAdmin.value
-      ? 'http://3.93.49.119:8080/projeto/projetos'
-      : `http://3.93.49.119:8080/projeto/usuario/${user.value.id}`
+      ? 'http://localhost:8080/projeto/projetos'
+      : `http://localhost:8080/projeto/usuario/${user.value.id}`
 
     const response = await api.get(endpoint, {
       headers: { Authorization: `Bearer ${token}` }
@@ -216,7 +305,7 @@ async function saveNewProject () {
       tipoProjeto: newProject.value.tipoProjeto.value // Aqui garantimos que apenas o valor seja enviado
     }
     console.log('Project data being sent:', projectData) // Log para depuração
-    await api.post('http://3.93.49.119:8080/projeto/criar', projectData, {
+    await api.post('http://localhost:8080/projeto/criar', projectData, {
       headers: { Authorization: `Bearer ${token}` }
     })
     $q.notify({
@@ -237,11 +326,6 @@ async function saveNewProject () {
   }
 }
 
-function editProject (project) {
-  // Implement edit functionality
-  console.log('Edit project:', project)
-}
-
 function confirmDeleteProject (project) {
   projectToDelete.value = project
   confirmDelete.value = true
@@ -250,7 +334,7 @@ function confirmDeleteProject (project) {
 async function deleteProject () {
   try {
     const token = localStorage.getItem('userToken')
-    await api.delete(`http://3.93.49.119:8080/projeto/${projectToDelete.value.idProjeto}`, {
+    await api.delete(`http://localhost:8080/projeto/${projectToDelete.value.idProjeto}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     $q.notify({
