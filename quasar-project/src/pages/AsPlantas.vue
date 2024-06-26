@@ -160,6 +160,39 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo de Edição -->
+    <q-dialog v-model="editDialog" persistent>
+      <q-card style="width: 700px; max-width: 80vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Editar Planta</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          <q-form @submit="submitEdit">
+            <q-input v-model="editingPlanta.nome" label="Nome" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-input v-model="editingPlanta.nome_cientifico" label="Nome Científico" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-input v-model="editingPlanta.descricao" label="Descrição" type="textarea" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-input v-model="editingPlanta.origem" label="Origem" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-input v-model="editingPlanta.cuidados" label="Cuidados" type="textarea" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-input v-model="editingPlanta.dataregistro" label="Data de Registro" dense :rules="[val => !!val || 'Campo obrigatório']" />
+            <q-select
+              v-model="editingPlanta.categoria"
+              :options="categorias.filter(cat => cat.value !== null)"
+              label="Categoria"
+              dense
+              :rules="[val => !!val || 'Campo obrigatório']"
+            />
+            <div class="row justify-end q-mt-md">
+              <q-btn label="Cancelar" color="negative" flat v-close-popup />
+              <q-btn label="Salvar" type="submit" color="positive" />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -179,7 +212,8 @@ const selectedCategory = ref(null)
 const visualizarDialog = ref(false)
 const confirmarExclusaoDialog = ref(false)
 const plantaSelecionada = ref({})
-
+const editDialog = ref(false)
+const editingPlanta = ref({})
 const user = ref(JSON.parse(localStorage.getItem('userData')))
 const isAdmin = computed(() => user.value.user_role === 'ADMIN')
 
@@ -225,10 +259,38 @@ onMounted(async () => {
   await fetchPlantas()
 })
 
+function editarPlanta (planta) {
+  editingPlanta.value = { ...planta }
+  editDialog.value = true
+}
+
+async function submitEdit () {
+  try {
+    const token = localStorage.getItem('userToken')
+    await api.put(`http://localhost:8080/planta/edit/${editingPlanta.value.id}`, editingPlanta.value, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    $q.notify({
+      color: 'positive',
+      message: 'Planta atualizada com sucesso',
+      icon: 'check'
+    })
+    editDialog.value = false
+    await fetchPlantas()
+  } catch (error) {
+    console.error('Erro ao atualizar planta:', error)
+    $q.notify({
+      color: 'negative',
+      message: 'Erro ao atualizar planta',
+      icon: 'error'
+    })
+  }
+}
+
 async function fetchPlantas () {
   try {
     const token = localStorage.getItem('userToken')
-    const response = await api.get('http://54.82.62.218:8080/planta/plantas', {
+    const response = await api.get('http://localhost:8080/planta/plantas', {
       headers: { Authorization: `Bearer ${token}` }
     })
     plantas.value = response.data
@@ -280,11 +342,6 @@ function visualizarPlanta (planta) {
   visualizarDialog.value = true
 }
 
-function editarPlanta (planta) {
-  // Implementar a lógica de edição
-  console.log('Editar planta:', planta)
-}
-
 function confirmarExclusao (planta) {
   plantaSelecionada.value = planta
   confirmarExclusaoDialog.value = true
@@ -293,7 +350,7 @@ function confirmarExclusao (planta) {
 async function excluirPlanta () {
   try {
     const token = localStorage.getItem('userToken')
-    await api.delete(`http://54.82.62.218:8080/planta/${plantaSelecionada.value.id}`, {
+    await api.delete(`http://localhost:8080/planta/${plantaSelecionada.value.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     $q.notify({
