@@ -74,6 +74,19 @@
       </div>
     </div>
 
+    <!-- Paginação -->
+    <div class="row justify-center q-mt-md">
+      <q-pagination
+        v-model="currentPage"
+        :max="totalPages"
+        :max-pages="6"
+        boundary-links
+        direction-links
+        @update:model-value="changePage"
+      />
+    </div>
+
+    <!-- Diálogo de Visualização -->
     <q-dialog v-model="visualizarDialog">
       <q-card style="width: 700px; max-width: 80vw;">
         <q-card-section class="bg-green-2 text-white">
@@ -178,13 +191,15 @@
             <q-input v-model="editingPlanta.origem" label="Origem" dense :rules="[val => !!val || 'Campo obrigatório']" />
             <q-input v-model="editingPlanta.cuidados" label="Cuidados" type="textarea" dense :rules="[val => !!val || 'Campo obrigatório']" />
             <q-input v-model="editingPlanta.dataregistro" label="Data de Registro" dense :rules="[val => !!val || 'Campo obrigatório']" />
-            <q-select
-              v-model="editingPlanta.categoria"
-              :options="categorias.filter(cat => cat.value !== null)"
-              label="Categoria"
-              dense
-              :rules="[val => !!val || 'Campo obrigatório']"
-            />
+              <q-select
+                v-model="editingPlanta.categoria"
+                :options="categorias"
+                label="Categoria"
+                dense
+                :rules="[val => !!val || 'Campo obrigatório']"
+                option-value="value"
+                option-label="label"
+              />
             <div class="row justify-end q-mt-md">
               <q-btn label="Cancelar" color="negative" flat v-close-popup />
               <q-btn label="Salvar" type="submit" color="positive" />
@@ -216,8 +231,12 @@ const editDialog = ref(false)
 const editingPlanta = ref({})
 const user = ref(JSON.parse(localStorage.getItem('userData')))
 const isAdmin = computed(() => user.value.user_role === 'ADMIN')
+const currentPage = ref(1)
+const itemsPerPage = 15
+const totalItems = ref(0)
+const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage))
 
-const categorias = [
+const categorias = ref([
   { label: 'Todas', value: null },
   { label: 'Briófita', value: 'BRIOFITA' },
   { label: 'Pteridófita', value: 'PTERIDOFITA' },
@@ -244,7 +263,7 @@ const categorias = [
   { label: 'Lagunar', value: 'LAGUNAR' },
   { label: 'Florestal', value: 'FLORESTAL' },
   { label: 'Camponesa', value: 'CAMPONESA' }
-]
+])
 
 const filteredPlantas = computed(() => {
   return plantas.value.filter(planta => {
@@ -291,9 +310,15 @@ async function fetchPlantas () {
   try {
     const token = localStorage.getItem('userToken')
     const response = await api.get('http://localhost:8080/planta/plantas', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: currentPage.value - 1, // A API provavelmente espera páginas começando em 0
+        size: itemsPerPage
+      }
     })
-    plantas.value = response.data
+    plantas.value = response.data.content // Assumindo que a API retorna um objeto com 'content'
+    totalItems.value = response.data.totalElements // Total de itens
+    // Não atualizamos currentPage.value aqui, pois já está definido pelo componente de paginação
   } catch (error) {
     console.error('Erro ao carregar plantas:', error)
     $q.notify({
@@ -304,6 +329,11 @@ async function fetchPlantas () {
   } finally {
     loading.value = false
   }
+}
+
+function changePage (page) {
+  currentPage.value = page
+  fetchPlantas()
 }
 
 function getCategoryColor (category) {

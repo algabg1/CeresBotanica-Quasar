@@ -262,7 +262,7 @@ function openAddPlantsDialog () {
 async function fetchAvailablePlants () {
   try {
     const token = localStorage.getItem('userToken')
-    const response = await api.get('http://localhost:8080/planta/plantas', {
+    const response = await api.get('http://localhost:8080/planta/get-planta-to-projeto', {
       headers: { Authorization: `Bearer ${token}` }
     })
     availablePlants.value = response.data
