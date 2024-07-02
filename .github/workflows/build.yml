@@ -2,7 +2,7 @@ name: Build
 on:
   push:
     branches:
-      - 001_criando_paginas_vue
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
